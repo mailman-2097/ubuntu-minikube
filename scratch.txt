@@ -1,0 +1,68 @@
+alias k=kubectl
+minikube delete
+minikube start --driver='docker' --memory='2000m' --listen-address=0.0.0.0 # --alsologtostderr -v=1
+
+kubectl config view
+kubectl get po -A
+kubectl cluster-info
+
+minikube dashboard --url
+
+kubectl proxy --address='0.0.0.0' --disable-filter=true # can do port forward see
+# https://www.digitalocean.com/community/tutorials/how-to-use-minikube-for-local-kubernetes-development-and-testing
+
+# https://github.com/kubernetes/dashboard/blob/master/docs/user/accessing-dashboard/README.md
+
+minikube ssh
+
+kubectl get nodes
+kubectl get pods # scope is 'default' namespace
+kubectl get namespaces
+kubectl get pods --namespace=kube-system
+kubectl run nginx --image=nginx
+kubectl describe pod nginx
+
+kubectl create deployment nginx-deployment --image=nginx
+kubectl get pods
+kubectl describe deployment nginx-deployment
+kubectl describe pod nginx-deployment-85c6d5f6dd-d7b6w
+kubectl scale deployment nginx-deployment --replicas=2
+
+kubectl get deployments 
+kubectl expose deployment nginx-deployment --port=8080 --target-port=80
+kubectl get services
+kubectl describe service nginx-deployment
+kubectl delete deployment nginx-deployment
+kubectl delete service nginx-deployment
+
+kubectl create deployment dep-nginx --image=nginx
+# to make service accessible from node (minikube ip) on the random node-port 
+kubectl scale deployment dep-nginx --replicas=3
+
+kubectl expose deployment dep-nginx --type=NodePort --port=8080 --target-port=80
+kubectl get service dep-nginx --output='jsonpath="{.spec.ports[0].nodePort}"'
+kubectl delete service dep-nginx
+minikube service dep-nginx --url
+
+# https://www.digitalocean.com/community/tutorials/how-to-use-minikube-for-local-kubernetes-development-and-testing
+ssh -L 31319:127.0.0.1:31319 vagrant@192.168.10.10
+ssh -L 31319:0.0.0.0:31319 vagrant@192.168.10.10
+
+# both are similar
+kubectl expose deployment dep-nginx --type=LoadBalancer --port=8080 --target-port=80
+kubectl expose deployment dep-nginx --type=NodePort --port=8080 --target-port=80
+
+kubectl get service dep-nginx
+minikube service dep-nginx
+kubectl port-forward --address 0.0.0.0 service/dep-nginx 30000:31823
+
+# minikube tunnel
+# kubectl expose deployment dep-nginx --type=LoadBalancer --port=8080 --target-port=80
+
+# https://www.digitalocean.com/community/tutorials/how-to-use-minikube-for-local-kubernetes-development-and-testing
+minikube dashboard --url
+ssh -L 7070:127.0.0.1:31313 vagrant@192.168.10.10
+http://127.0.0.1:7070/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/#/workloads?namespace=default
+
+# https://github.com/kubernetes/minikube/issues/14364
+minikube start --listen-address=0.0.0.0
