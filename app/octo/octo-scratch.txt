@@ -1,0 +1,23 @@
+# TODO: https://www.sqlservercentral.com/blogs/deploying-a-stand-alone-sql-server-instance-into-a-kubernetes-cluster
+
+k get pvc
+k get pods --field-selector=status.phase=Pending
+pod=mssql-94d478644-892h7
+kubectl describe pod $pod
+kubectl exec -it $pod -- /bin/bash
+kubectl exec -it deployment.apps/mssql -- /bin/bash
+$
+/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "P@ssw0rd!"
+
+1> :ListVar
+1> select DB_NAME()
+go
+
+-- OR -- 
+
+docker run -it mcr.microsoft.com/mssql-tools
+
+kubectl exec -it deployment.apps/octopusdeploy -- /bin/bash
+
+ssh -L 32734:127.0.0.1:32734 vagrant@192.168.10.10
+kubectl port-forward --address 0.0.0.0 service/octopusdeploy 30000:32734

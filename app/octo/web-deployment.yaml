@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: octopusdeploy
+spec:
+  selector:
+    app: octopusdeploy
+  ports:
+    - port: 8080
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octopusdeploy
+spec:
+  selector:
+    matchLabels:
+      app: octopusdeploy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: octopusdeploy
+    spec:
+      containers:
+      - name: octopusdeploy
+        image: octopusdeploy/octopusdeploy:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            memory: 2Gi
+            cpu: 200m
+        env:
+        - name: ACCEPT_EULA
+          value: "Y"
+        - name: ADMIN_USERNAME
+          value: "admin"
+        - name: ADMIN_PASSWORD
+          value: "P@ssw0rd!"
+        - name: DB_CONNECTION_STRING
+          value: "Server=mssql,1433;Database=OctopusDeployDB;User=sa;Password=P@ssw0rd!"
+        - name: MASTER_KEY
+          value: "yDjbIEn9gxDl7LZwNVG5KQ=="
+        ports:
+        - containerPort: 8080
+        - containerPort: 10943
+        volumeMounts:
+          - name: tasklogs
+            mountPath: /taskLogs
+          - name: artifacts
+            mountPath: /artifacts
+          - name: repository
+            mountPath: /repository
+      volumes:
+        - name: tasklogs
+          hostPath:
+            path: /data
+            type: Directory
+        - name: artifacts
+          hostPath:
+            path: /data
+            type: Directory
+        - name: repository
+          hostPath:
+            path: /data
+            type: Directory
