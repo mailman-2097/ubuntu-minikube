@@ -27,7 +27,7 @@ config.vm.define "minikube", autostart: AUTOSTART	do |master|
 
 		master.vm.provider :virtualbox do |vb|
 					vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-					vb.customize ["modifyvm", :id, "--memory", 4096]
+					vb.customize ["modifyvm", :id, "--memory", 9999]
 					vb.customize ["modifyvm", :id, "--name", "minikube"]
 					vb.customize ["modifyvm", :id, "--cpus", "2"]
 		end
