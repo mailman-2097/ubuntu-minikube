@@ -66,3 +66,7 @@ http://127.0.0.1:7070/api/v1/namespaces/kubernetes-dashboard/services/http:kuber
 
 # https://github.com/kubernetes/minikube/issues/14364
 minikube start --listen-address=0.0.0.0
+
+$ kubectl config view 
+$ kubectl config current-context 
+
