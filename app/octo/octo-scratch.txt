@@ -16,8 +16,14 @@ go
 -- OR -- 
 
 docker run -it mcr.microsoft.com/mssql-tools
+/opt/mssql-tools/bin/sqlcmd -S mssql -U SA -P "P@ssw0rd!"
+
+kubectl config set-context $(kubectl config current-context) --namespace=octopusserver # default
 
 kubectl exec -it deployment.apps/octopusdeploy -- /bin/bash
+kubectl exec -it deployment.apps/mssql -- /bin/bash
 
 ssh -L 32734:127.0.0.1:32734 vagrant@192.168.10.10
-kubectl port-forward --address 0.0.0.0 service/octopusdeploy 30000:32734
+kubectl port-forward --address 0.0.0.0 service/octopusdeploy 30000:8080
+
+curl -L -s 'https://registry.hub.docker.com/v2/repositories/library/octopusdeploy/tags?page_size=1024'|jq '."results"[]["name"]'

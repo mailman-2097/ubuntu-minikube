@@ -1,24 +1,10 @@
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: sqldata
-spec:
-  capacity:
-    storage: 8Gi
-  accessModes:
-    - ReadWriteMany
-  hostPath:
-    path: "/sqldata"
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: mssql-data-claim
+  name: mssql-data
 spec:
-  # volumeBindingMode: WaitForFirstConsumer
-  # ReadWriteOnce > ReadWriteMany
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   resources:
     requests:
       storage: 8Gi
@@ -61,13 +47,13 @@ spec:
       volumes:
         - name: mssqldb
           persistentVolumeClaim:
-            claimName: mssql-data-claim
+            claimName: mssql-data
       containers:
         - name: mssql
           image: mcr.microsoft.com/mssql/server:2019-latest
           resources:
             limits:
-              memory: 2Gi
+              memory: 4Gi
               cpu: 500m
           ports:
             - containerPort: 1433
@@ -83,10 +69,3 @@ spec:
           volumeMounts:
             - name: mssqldb
               mountPath: /var/opt/mssql
-    # - name: SA_PASSWORD
-    #   valueFrom:
-    #     secretKeyRef:
-    #       name: sql-password
-    #       key: sa_password
-    # kubectl create secret generic sql-password --from-literal=sa_password=Passw0rd
-    # https://stackoverflow.com/questions/63217356/sql-server-pods-with-persistentvolumeclaim

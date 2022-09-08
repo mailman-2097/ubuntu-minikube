@@ -29,8 +29,8 @@ spec:
         imagePullPolicy: IfNotPresent
         resources:
           limits:
-            memory: 2Gi
-            cpu: 200m
+            memory: 3Gi
+            cpu: 300m
         env:
         - name: ACCEPT_EULA
           value: "Y"
