@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: octopus-web
+spec:
+  type: LoadBalancer
+  ports:
+    - name: web
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: octopus
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: octopus
+spec:
+  selector:
+    matchLabels:
+      app: octopus
+  serviceName: "octopus"
+  replicas: 1 # More than one require HA license
+  template:
+    metadata:
+      labels:
+        app: octopus
+    spec:
+      affinity:
+        # Try and keep Octopus nodes on separate Kubernetes nodes
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - octopus
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: octopus-storage-vol
+        persistentVolumeClaim:
+          claimName: octopus-storage-claim
+      containers:
+      - name: octopus        
+        image: octopusdeploy/octopusdeploy:2021.3.8275
+        securityContext:
+          privileged: true
+        env:
+          - name: ACCEPT_EULA
+            # "Y" means accepting the EULA at https://octopus.com/company/legal
+            value: "Y"
+          - name: OCTOPUS_SERVER_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: DB_CONNECTION_STRING
+            value: Server=mssql,1433;Database=Octopus;User Id=SA;Password=Password01!
+          - name: ADMIN_USERNAME
+            value: admin
+          - name: ADMIN_PASSWORD
+            value: Password01!
+          - name: ADMIN_EMAIL
+            value: admin@example.org
+          - name: OCTOPUS_SERVER_BASE64_LICENSE
+            # Your license key goes here. When using more than one node, a HA license is required. Without a HA license, the stateful set can have a replica count of 1.
+            value: <License-goes-here>
+          - name: MASTER_KEY
+            # Replace this, as this value protects secrets in Octopus
+            value: <MasterKey-goes-here>
+        ports:
+        - containerPort: 8080
+          name: web
+        - containerPort: 10943
+          name: tentacle
+        volumeMounts:
+        - name: octopus-storage-vol                                                  
+          mountPath: /artifacts
+          subPath: artifacts
+        - name: octopus-storage-vol
+          mountPath: /repository
+          subPath: repository
+        - name: octopus-storage-vol
+          mountPath: /taskLogs
+          subPath: taskLogs
+        - name: octopus-storage-vol
+          mountPath: /home/octopus/.octopus/OctopusServer/Server/Logs
+          subPathExpr: serverLogs/$(OCTOPUS_SERVER_NODE_NAME)
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - '[[ -f /Octopus/Octopus.Server ]] && EXE="/Octopus/Octopus.Server" || EXE="dotnet /Octopus/Octopus.Server.dll"; $EXE node --instance=OctopusServer --drain=true --wait=600 --cancel-tasks;'
+          # postStart must finish in 5 minutes or the container will fail to create
+          postStart:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - 'URL=http://localhost:8080; x=0; while [ $x -lt 9 ]; do response=$(/usr/bin/curl -k $URL/api/octopusservernodes/ping --write-out %{http_code} --silent --output /dev/null); if [ "$response" -ge 200 ] && [ "$response" -le 299 ]; then break; fi; if [ "$response" -eq 418 ]; then [[ -f /Octopus/Octopus.Server ]] && EXE="/Octopus/Octopus.Server" || EXE="dotnet /Octopus/Octopus.Server.dll"; $EXE node --instance=OctopusServer --drain=false; now=$(date); echo "${now} Server cancelling drain mode." break; fi; now=$(date); echo "${now} Server is not ready, can not disable drain mode."; sleep 30; done;'
+        readinessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - URL=http://localhost:8080; response=$(/usr/bin/curl -k $URL/api/serverstatus/hosted/internal --write-out %{http_code} --silent --output /dev/null); /usr/bin/test "$response" -ge 200 && /usr/bin/test "$response" -le 299 || /usr/bin/test
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 60
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - URL=http://localhost:8080; response=$(/usr/bin/curl -k $URL/api/octopusservernodes/ping --write-out %{http_code} --silent --output /dev/null); /usr/bin/test "$response" -ge 200 && /usr/bin/test "$response" -le 299 || /usr/bin/test "$response" -eq 418
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 10
+        startupProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - URL=http://localhost:8080; response=$(/usr/bin/curl -k $URL/api/octopusservernodes/ping --write-out %{http_code} --silent --output /dev/null); /usr/bin/test "$response" -ge 200 && /usr/bin/test "$response" -le 299 || /usr/bin/test "$response" -eq 418
+          failureThreshold: 30
+          periodSeconds: 60

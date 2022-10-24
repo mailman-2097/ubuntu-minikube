@@ -24,6 +24,33 @@ kubectl exec -it deployment.apps/octopusdeploy -- /bin/bash
 kubectl exec -it deployment.apps/mssql -- /bin/bash
 
 ssh -L 32734:127.0.0.1:32734 vagrant@192.168.10.10
-kubectl port-forward --address 0.0.0.0 service/octopusdeploy 30000:8080
+kubectl port-forward --address 0.0.0.0 service/octopusdeploy 30000:80
+kubectl port-forward --address 0.0.0.0 service/octopusdeploy 30001:10943
 
 curl -L -s 'https://registry.hub.docker.com/v2/repositories/library/octopusdeploy/tags?page_size=1024'|jq '."results"[]["name"]'
+
+kubectl apply -f dnsutils.yaml
+kubectl get pods/dnsutils
+kubectl exec -ti dnsutils -- nslookup octopusdeploy.octopusserver.svc.cluster.local
+kubectl exec -ti dnsutils -- curl octopusdeploy.octopusserver.svc.cluster.local
+
+API-BNNS7DDRPBNB5U8LRUCELT84WOPW
+
+sudo /opt/octopus/tentacle/Tentacle service --install --start
+sudo /opt/octopus/tentacle/configure-tentacle.sh
+
+curl -kv https://192.168.10.10:30001
+openssl s_client -connect 192.168.10.10:30001 -showcerts </dev/null | openssl x509 -outform pem > octopusserver.pem
+openssl x509 -in octopusserver.pem -noout -text 
+openssl x509 -outform der -in octopusserver.pem -out octopusserver.crt
+openssl x509 -outform der -in octopus.cer -out octopus.crt
+sudo cp octopusserver.crt /usr/local/share/ca-certificates
+sudo update-ca-certificates -f
+
+
+sudo /opt/octopus/tentacle/Tentacle create-instance --instance "Tentacle" --config "/etc/octopus/Tentacle/tentacle-Tentacle.config"
+sudo /opt/octopus/tentacle/Tentacle new-certificate --instance "Tentacle" --if-blank
+sudo systemctl restart Tentacle.service
+sudo /opt/octopus/tentacle/Tentacle configure --instance "Tentacle" --app "/home/Octopus/Applications" --noListen "True" --reset-trust
+sudo /opt/octopus/tentacle/Tentacle register-with --instance "Tentacle" --server "https://192.168.10.10:30001" --name "tentacle" --comms-style "TentacleActive" --server-comms-port "10943" --apiKey "API-BNNS7DDRPBNB5U8LRUCELT84WOPW" --space "Default" --environment "Development"  --role "linux"
+sudo /opt/octopus/tentacle/Tentacle service --install --start --instance "Tentacle"
